@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+  <Include href="KnownImageIds.vsct" />
+
+  <Commands package="guidQuickOpenFilePackage">
+    <Groups>
+      <!-- Tools 메뉴 -->
+      <Group guid="guidQuickOpenFileCmdSet" id="ToolsMenuGroup" priority="0x0100">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
+      </Group>
+      <!-- 코드 편집기 우클릭 메뉴 -->
+      <Group guid="guidQuickOpenFileCmdSet" id="EditorContextGroup" priority="0x0100">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <Button guid="guidQuickOpenFileCmdSet" id="cmdidOpenFileInSolution" priority="0x0100" type="Button">
+        <Parent guid="guidQuickOpenFileCmdSet" id="ToolsMenuGroup" />
+        <Icon guid="ImageCatalogGuid" id="Open" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Open File in Solution...</ButtonText>
+          <CanonicalName>.QuickOpenFile.OpenFileInSolution</CanonicalName>
+          <LocCanonicalName>.QuickOpenFile.OpenFileInSolution</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <Button guid="guidQuickOpenFileCmdSet" id="cmdidToggleHeaderSource" priority="0x0101" type="Button">
+        <Parent guid="guidQuickOpenFileCmdSet" id="ToolsMenuGroup" />
+        <Icon guid="ImageCatalogGuid" id="SwitchSourceOrTarget" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <Strings>
+          <ButtonText>Open Corresponding File (Header/Source)</ButtonText>
+          <CanonicalName>.QuickOpenFile.ToggleHeaderSource</CanonicalName>
+          <LocCanonicalName>.QuickOpenFile.ToggleHeaderSource</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidQuickOpenFileCmdSet" id="cmdidGotoDeclImpl" priority="0x0102" type="Button">
+        <Parent guid="guidQuickOpenFileCmdSet" id="ToolsMenuGroup" />
+        <Icon guid="ImageCatalogGuid" id="GoToDefinition" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Goto Implementation/Declaration</ButtonText>
+          <CanonicalName>.QuickOpenFile.GotoImplementationDeclaration</CanonicalName>
+          <LocCanonicalName>.QuickOpenFile.GotoImplementationDeclaration</LocCanonicalName>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <CommandPlacements>
+    <CommandPlacement guid="guidQuickOpenFileCmdSet" id="cmdidToggleHeaderSource" priority="0x0100">
+      <Parent guid="guidQuickOpenFileCmdSet" id="EditorContextGroup" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidQuickOpenFileCmdSet" id="cmdidGotoDeclImpl" priority="0x0101">
+      <Parent guid="guidQuickOpenFileCmdSet" id="EditorContextGroup" />
+    </CommandPlacement>
+  </CommandPlacements>
+
+  <KeyBindings>
+    <!-- Visual Assist 와 동일한 기본 단축키. Tools > Options > Environment > Keyboard 에서 변경 가능 -->
+    <KeyBinding guid="guidQuickOpenFileCmdSet" id="cmdidOpenFileInSolution" editor="guidVSStd97" key1="O" mod1="Alt Shift" />
+    <KeyBinding guid="guidQuickOpenFileCmdSet" id="cmdidToggleHeaderSource" editor="guidVSStd97" key1="O" mod1="Alt" />
+    <KeyBinding guid="guidQuickOpenFileCmdSet" id="cmdidGotoDeclImpl" editor="guidVSStd97" key1="G" mod1="Alt" />
+  </KeyBindings>
+
+  <Symbols>
+    <GuidSymbol name="guidQuickOpenFilePackage" value="{21205e0d-3e33-4051-8ba4-e6ce4d95654c}" />
+    <GuidSymbol name="guidQuickOpenFileCmdSet" value="{a75a3bdf-60ce-4733-be77-2ade041287ae}">
+      <IDSymbol name="ToolsMenuGroup" value="0x1020" />
+      <IDSymbol name="EditorContextGroup" value="0x1021" />
+      <IDSymbol name="cmdidOpenFileInSolution" value="0x0100" />
+      <IDSymbol name="cmdidToggleHeaderSource" value="0x0101" />
+      <IDSymbol name="cmdidGotoDeclImpl" value="0x0102" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>
