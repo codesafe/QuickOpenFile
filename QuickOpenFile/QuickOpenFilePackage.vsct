@@ -50,6 +50,25 @@
           <LocCanonicalName>.QuickOpenFile.GotoImplementationDeclaration</LocCanonicalName>
         </Strings>
       </Button>
+      <Button guid="guidQuickOpenFileCmdSet" id="cmdidListMethodsInFile" priority="0x0103" type="Button">
+        <Parent guid="guidQuickOpenFileCmdSet" id="ToolsMenuGroup" />
+        <Icon guid="ImageCatalogGuid" id="MethodPublic" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>List Methods in File...</ButtonText>
+          <CanonicalName>.QuickOpenFile.ListMethodsInFile</CanonicalName>
+          <LocCanonicalName>.QuickOpenFile.ListMethodsInFile</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <Button guid="guidQuickOpenFileCmdSet" id="cmdidToggleNavigationBar" priority="0x0104" type="Button">
+        <Parent guid="guidQuickOpenFileCmdSet" id="ToolsMenuGroup" />
+        <Strings>
+          <ButtonText>Show Navigation Bar</ButtonText>
+          <CanonicalName>.QuickOpenFile.ToggleNavigationBar</CanonicalName>
+          <LocCanonicalName>.QuickOpenFile.ToggleNavigationBar</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
 
@@ -67,6 +86,7 @@
     <KeyBinding guid="guidQuickOpenFileCmdSet" id="cmdidOpenFileInSolution" editor="guidVSStd97" key1="O" mod1="Alt Shift" />
     <KeyBinding guid="guidQuickOpenFileCmdSet" id="cmdidToggleHeaderSource" editor="guidVSStd97" key1="O" mod1="Alt" />
     <KeyBinding guid="guidQuickOpenFileCmdSet" id="cmdidGotoDeclImpl" editor="guidVSStd97" key1="G" mod1="Alt" />
+    <KeyBinding guid="guidQuickOpenFileCmdSet" id="cmdidListMethodsInFile" editor="guidVSStd97" key1="M" mod1="Alt" />
   </KeyBindings>
 
   <Symbols>
@@ -77,6 +97,8 @@
       <IDSymbol name="cmdidOpenFileInSolution" value="0x0100" />
       <IDSymbol name="cmdidToggleHeaderSource" value="0x0101" />
       <IDSymbol name="cmdidGotoDeclImpl" value="0x0102" />
+      <IDSymbol name="cmdidListMethodsInFile" value="0x0103" />
+      <IDSymbol name="cmdidToggleNavigationBar" value="0x0104" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

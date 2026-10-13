@@ -16,5 +16,7 @@ namespace QuickOpenFile
         public const int OpenFileInSolution = 0x0100;
         public const int ToggleHeaderSource = 0x0101;
         public const int GotoDeclImpl = 0x0102;
+        public const int ListMethodsInFile = 0x0103;
+        public const int ToggleNavigationBar = 0x0104;
     }
 }

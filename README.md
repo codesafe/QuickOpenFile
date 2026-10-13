@@ -1,6 +1,6 @@
 # Quick Open File (Visual Studio 2022 / 2026 확장)
 
-Visual Assist 의 **Open File in Solution**, **Open Corresponding File (헤더 ↔ 소스)**, **Goto Implementation/Declaration** 기능을 재현한 VSIX 확장입니다.
+Visual Assist 의 **Open File in Solution**, **Open Corresponding File (헤더 ↔ 소스)**, **Goto Implementation/Declaration**, **VA Navigation Bar** 기능을 재현한 VSIX 확장입니다.
 
 ## 기능
 
@@ -40,7 +40,21 @@ C/C++ 파일에서 같은 이름의 헤더 ↔ 소스로 이동합니다.
 - 첫 번째 명령으로 커서가 움직이지 않으면 두 번째 명령을 시도합니다. 둘 다 실패하면 상태 표시줄에 알려 줍니다.
 - 코드 편집기 우클릭 메뉴와 **Tools** 메뉴에도 추가됩니다.
 
-> 단축키는 **Tools > Options > Environment > Keyboard** 에서 `QuickOpenFile.OpenFileInSolution`, `QuickOpenFile.ToggleHeaderSource`, `QuickOpenFile.GotoImplementationDeclaration` 으로 검색해 변경할 수 있습니다.
+### 4. Navigation Bar (C/C++, C#) — 함수 목록 `Alt+M`
+Visual Assist 의 VA Navigation Bar 처럼 C/C++ 와 C# 편집기 위쪽에 막대를 표시합니다.
+- **Go 버튼 (맨 오른쪽)**: `Alt+G` 와 같습니다. 커서 위치 심볼의 선언부 ↔ 구현부로 이동합니다.
+- **Context 칸 (왼쪽)**: 커서가 있는 범위를 표시합니다. (예: `Foo::Bar`, 클래스 안이면 `Foo`, 밖이면 `(global scope)`)
+  - 클릭하거나 `Alt+M` 을 누르면 파일 안의 클래스/함수 목록이 열립니다 (List Methods in File). 입력해서 필터링하고 `Enter` / 더블클릭으로 이동합니다.
+- **Definition 칸 (오른쪽)**: 커서가 있는 심볼(변수, 함수, 클래스 등)의 선언을 표시합니다. (예: `int m_count`, `auto` 변수는 실제 형)
+- 막대 표시/숨김: **Tools > Show Navigation Bar** (설정은 저장됨)
+- 동작 원리:
+  - Context 칸과 함수 목록은 자체 경량 파서로 백그라운드 스레드에서 계산합니다 (VS 코드 모델을 쓰지 않아 UI 를 멈추지 않고, 프로젝트에 없는 파일에서도 동작). 주석·문자열·전처리기를 건너뛰고 중괄호 범위를 추적하며, `#if` / `#else` 는 첫 번째 분기만 읽습니다. 복잡한 매크로에서는 범위가 틀릴 수 있습니다.
+  - Definition 칸은 VS Quick Info(마우스 툴팁) 정보를 사용합니다. 솔루션 로드가 끝난 뒤 포커스를 가진 편집기에서만 조회하며, IntelliSense 가 꺼져 있거나 분석 중이면 비어 있을 수 있습니다.
+  - 화면에 보이지 않는 탭(시작 시 복원된 뒤쪽 탭 등)은 보일 때까지 아무 작업도 하지 않습니다.
+- VS 자체 탐색 막대와 겹쳐 보이면 **Tools > Options > Text Editor > C/C++ > General > Navigation bar** (C# 은 **Text Editor > C# > General > Navigation bar**) 를 끄면 됩니다.
+- C#: Context 칸은 네임스페이스를 생략해 `Foo.Bar` 로 표시하고, 함수 목록에는 생성자·속성·이벤트도 포함됩니다. Definition 칸은 VS 툴팁의 `(local variable)` 같은 분류 표시를 떼고 `int count` 처럼 표시합니다.
+
+> 단축키는 **Tools > Options > Environment > Keyboard** 에서 `QuickOpenFile.OpenFileInSolution`, `QuickOpenFile.ToggleHeaderSource`, `QuickOpenFile.GotoImplementationDeclaration`, `QuickOpenFile.ListMethodsInFile` 으로 검색해 변경할 수 있습니다.
 > Visual Assist 가 함께 설치되어 있으면 같은 단축키가 충돌하므로 둘 중 하나를 변경하세요.
 
 ## 빌드
@@ -65,6 +79,11 @@ C/C++ 파일에서 같은 이름의 헤더 ↔ 소스로 이동합니다.
 | `QuickOpenFilePackage.cs` | AsyncPackage, 명령 등록, 헤더/소스 전환 명령, 문서 열기 |
 | `QuickOpenFilePackage.vsct` | 메뉴 / 단축키 정의 |
 | `GotoDeclImplCommand.cs` | 선언부 ↔ 구현부 이동 (Alt+G) |
+| `NavigationBar/NavigationBarMargin.cs` | 에디터 위쪽 Navigation Bar (Context / Definition 칸) |
+| `NavigationBar/MethodListPopup.cs` | 파일의 함수 목록 팝업 (Alt+M) |
+| `NavigationBar/ScopeParser.cs` | C++ / C# 경량 파서: 네임스페이스/클래스/함수 범위 계산 (백그라운드 스레드) |
+| `NavigationBar/QuickInfoReader.cs` | Quick Info 에서 심볼 선언 텍스트 추출 |
+| `NavigationBar/NavigationBarSettings.cs` | 막대 표시 여부 저장 |
 | `QuickOpenDialog.cs` | 파일 목록 + 필터 입력 대화상자 (WPF, VS 테마 적용) |
 | `SolutionFileIndex.cs` | IVsHierarchy 순회로 솔루션 파일 수집, 캐시, 변경 이벤트 처리 |
 | `FileFilter.cs` | 필터 / 정렬 규칙 |

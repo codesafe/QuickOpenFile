@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="QuickOpenFile.e380c5c7-7863-4d07-a079-fefe9246e5a6" Version="1.0.2" Language="en-US" Publisher="codesafe" />
+    <Identity Id="QuickOpenFile.e380c5c7-7863-4d07-a079-fefe9246e5a6" Version="1.1.5" Language="en-US" Publisher="codesafe" />
     <DisplayName>Quick Open File</DisplayName>
-    <Description xml:space="preserve">Visual Assist style "Open File in Solution" (Alt+Shift+O) and C/C++ header/source toggle (Alt+O) and Goto Implementation/Declaration (Alt+G).</Description>
+    <Description xml:space="preserve">Visual Assist style "Open File in Solution" (Alt+Shift+O) and C/C++ header/source toggle (Alt+O) Goto Implementation/Declaration (Alt+G) and VA style Navigation Bar for C/C++ and C# (Alt+M).</Description>
     <License>LICENSE.txt</License>
     <Tags>open file, quick open, header, source, toggle, c++</Tags>
   </Metadata>
@@ -20,5 +20,6 @@
   </Prerequisites>
   <Assets>
     <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+    <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|" />
   </Assets>
 </PackageManifest>

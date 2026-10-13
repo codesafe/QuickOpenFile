@@ -6,13 +6,17 @@ using System.Threading;
 using EnvDTE;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.TextManager.Interop;
 using Task = System.Threading.Tasks.Task;
 
 namespace QuickOpenFile
 {
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true, RegisterUsing = RegistrationMethod.CodeBase)]
-    [InstalledProductRegistration("Quick Open File", "Visual Assist style Open File in Solution / Header-Source toggle", "1.0.2")]
+    [InstalledProductRegistration("Quick Open File", "Visual Assist style Open File in Solution / Header-Source toggle", "1.1.5")]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     // 솔루션이 열리면 백그라운드로 로드해서 파일 변경 이벤트를 받고, 메뉴 표시 여부를 갱신한다.
     [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
@@ -40,6 +44,17 @@ namespace QuickOpenFile
 
                 var gotoCommand = new OleMenuCommand(OnGotoDeclImpl, new CommandID(PackageGuids.CmdSet, PackageIds.GotoDeclImpl));
                 commandService.AddCommand(gotoCommand);
+
+                var listMethodsCommand = new OleMenuCommand(OnListMethodsInFile, new CommandID(PackageGuids.CmdSet, PackageIds.ListMethodsInFile));
+                commandService.AddCommand(listMethodsCommand);
+
+                var navBarCommand = new OleMenuCommand(OnToggleNavigationBar, new CommandID(PackageGuids.CmdSet, PackageIds.ToggleNavigationBar));
+                navBarCommand.BeforeQueryStatus += (s, e) =>
+                {
+                    ThreadHelper.ThrowIfNotOnUIThread();
+                    navBarCommand.Checked = NavigationBar.NavigationBarSettings.IsVisible;
+                };
+                commandService.AddCommand(navBarCommand);
             }
         }
 
@@ -122,6 +137,48 @@ namespace QuickOpenFile
 
                 DocumentOpener.Open(target);
             });
+        }
+
+        #endregion
+
+        #region Navigation Bar (Alt+M / 표시 토글)
+
+        private void OnListMethodsInFile(object sender, EventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            if (GetActiveNavigationBar() is NavigationBar.NavigationBarMargin margin)
+            {
+                margin.ShowMethodList();
+            }
+            else
+            {
+                SetStatusBarText("List Methods in File: C/C++ 또는 C# 코드 편집기에서만 사용할 수 있습니다.");
+            }
+        }
+
+        private void OnToggleNavigationBar(object sender, EventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            NavigationBar.NavigationBarSettings.IsVisible = !NavigationBar.NavigationBarSettings.IsVisible;
+        }
+
+        private NavigationBar.NavigationBarMargin GetActiveNavigationBar()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            if (!(GetService(typeof(SVsTextManager)) is IVsTextManager textManager) ||
+                textManager.GetActiveView(1, null, out IVsTextView activeView) != VSConstants.S_OK ||
+                activeView == null ||
+                !(GetService(typeof(SComponentModel)) is IComponentModel componentModel))
+            {
+                return null;
+            }
+
+            IWpfTextView view = componentModel.GetService<IVsEditorAdaptersFactoryService>().GetWpfTextView(activeView);
+            return view != null && view.Properties.TryGetProperty(typeof(NavigationBar.NavigationBarMargin), out NavigationBar.NavigationBarMargin margin)
+                ? margin
+                : null;
         }
 
         #endregion

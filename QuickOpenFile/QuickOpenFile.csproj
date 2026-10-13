@@ -9,7 +9,7 @@
     <LangVersion>latest</LangVersion>
     <UseWPF>true</UseWPF>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>1.0.2</Version>
+    <Version>1.1.5</Version>
 
     <!-- VSIX 설정 -->
     <GeneratePkgDefFile>true</GeneratePkgDefFile>
@@ -56,5 +56,10 @@
 
   <!-- SDK 스타일 프로젝트에서는 VSIX 패키징 타깃을 Sdk.targets 이후에 직접 import 해야 한다. (VSToolsPath 는 Microsoft.VSSDK.BuildTools 가 설정) -->
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="Exists('$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets')" />
+
+  <!-- 증분 빌드에서 obj 의 extension.vsixmanifest 가 갱신되지 않아 이전 버전 번호로 VSIX 가 만들어지는 문제 방지 -->
+  <Target Name="RefreshIntermediateVsixManifest" BeforeTargets="DetokenizeVsixManifestFile">
+    <Delete Files="$(IntermediateOutputPath)extension.vsixmanifest" />
+  </Target>
 
 </Project>
