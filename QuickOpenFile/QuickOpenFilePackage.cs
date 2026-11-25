@@ -16,7 +16,7 @@ using Task = System.Threading.Tasks.Task;
 namespace QuickOpenFile
 {
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true, RegisterUsing = RegistrationMethod.CodeBase)]
-    [InstalledProductRegistration("Quick Open File", "Visual Assist style Open File in Solution / Header-Source toggle", "1.1.5")]
+    [InstalledProductRegistration("Quick Open File", "Visual Assist style Open File in Solution / Header-Source toggle", "1.1.7")]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     // 솔루션이 열리면 백그라운드로 로드해서 파일 변경 이벤트를 받고, 메뉴 표시 여부를 갱신한다.
     [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]

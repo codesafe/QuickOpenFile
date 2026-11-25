@@ -38,6 +38,7 @@ C/C++ 파일에서 같은 이름의 헤더 ↔ 소스로 이동합니다.
 - C/C++: 사용처·선언 위 → 구현(정의)으로, 구현 위 → 선언으로 이동 (`Edit.GoToDefinition` → `Edit.GoToDeclaration`)
 - 그 외 언어(C# 등): 사용처 → 정의로, 선언(인터페이스/추상 멤버) 위 → 구현으로 이동 (`Edit.GoToDefinition` → `Edit.GoToImplementation`)
 - 첫 번째 명령으로 커서가 움직이지 않으면 두 번째 명령을 시도합니다. 둘 다 실패하면 상태 표시줄에 알려 줍니다.
+- 커서가 심볼 위나 바로 뒤에 있지 않으면(빈 줄, 공백, 주석, 문자열) 명령을 실행하지 않고 상태 표시줄에 안내만 표시합니다. 이때 VS 메시지 상자나 경고음이 나오지 않습니다. `#include "..."` 줄은 파일을 열 수 있도록 예외입니다.
 - 코드 편집기 우클릭 메뉴와 **Tools** 메뉴에도 추가됩니다.
 
 ### 4. Navigation Bar (C/C++, C#) — 함수 목록 `Alt+M`
@@ -46,10 +47,12 @@ Visual Assist 의 VA Navigation Bar 처럼 C/C++ 와 C# 편집기 위쪽에 막�
 - **Context 칸 (왼쪽)**: 커서가 있는 범위를 표시합니다. (예: `Foo::Bar`, 클래스 안이면 `Foo`, 밖이면 `(global scope)`)
   - 클릭하거나 `Alt+M` 을 누르면 파일 안의 클래스/함수 목록이 열립니다 (List Methods in File). 입력해서 필터링하고 `Enter` / 더블클릭으로 이동합니다.
 - **Definition 칸 (오른쪽)**: 커서가 있는 심볼(변수, 함수, 클래스 등)의 선언을 표시합니다. (예: `int m_count`, `auto` 변수는 실제 형)
+  - 읽기 전용 텍스트 상자라서 마우스로 드래그해 선택하고 `Ctrl+C` 로 복사할 수 있습니다. 선택 없이 `Ctrl+C` 를 누르면 전체가 복사되고, 우클릭 메뉴에도 복사 / 모두 선택이 있습니다. `Esc` 를 누르면 편집기로 돌아갑니다.
 - 막대 표시/숨김: **Tools > Show Navigation Bar** (설정은 저장됨)
 - 동작 원리:
   - Context 칸과 함수 목록은 자체 경량 파서로 백그라운드 스레드에서 계산합니다 (VS 코드 모델을 쓰지 않아 UI 를 멈추지 않고, 프로젝트에 없는 파일에서도 동작). 주석·문자열·전처리기를 건너뛰고 중괄호 범위를 추적하며, `#if` / `#else` 는 첫 번째 분기만 읽습니다. 복잡한 매크로에서는 범위가 틀릴 수 있습니다.
   - Definition 칸은 VS Quick Info(마우스 툴팁) 정보를 사용합니다. 솔루션 로드가 끝난 뒤 포커스를 가진 편집기에서만 조회하며, IntelliSense 가 꺼져 있거나 분석 중이면 비어 있을 수 있습니다.
+  - Quick Info 는 커서가 식별자 위나 바로 뒤에 있을 때만 조회합니다. 빈 줄 · 공백 · `//` 주석 · 문자열 위에서는 조회하지 않고 마지막 선언을 흐리게 유지합니다. (C++ 언어 서비스는 심볼이 없는 위치의 요청에 Windows 경고음을 냅니다.) 단, 여러 줄 `/* */` 주석의 중간 줄은 걸러지지 않습니다.
   - 화면에 보이지 않는 탭(시작 시 복원된 뒤쪽 탭 등)은 보일 때까지 아무 작업도 하지 않습니다.
 - VS 자체 탐색 막대와 겹쳐 보이면 **Tools > Options > Text Editor > C/C++ > General > Navigation bar** (C# 은 **Text Editor > C# > General > Navigation bar**) 를 끄면 됩니다.
 - C#: Context 칸은 네임스페이스를 생략해 `Foo.Bar` 로 표시하고, 함수 목록에는 생성자·속성·이벤트도 포함됩니다. Definition 칸은 VS 툴팁의 `(local variable)` 같은 분류 표시를 떼고 `int count` 처럼 표시합니다.
@@ -83,8 +86,21 @@ Visual Assist 의 VA Navigation Bar 처럼 C/C++ 와 C# 편집기 위쪽에 막�
 | `NavigationBar/MethodListPopup.cs` | 파일의 함수 목록 팝업 (Alt+M) |
 | `NavigationBar/ScopeParser.cs` | C++ / C# 경량 파서: 네임스페이스/클래스/함수 범위 계산 (백그라운드 스레드) |
 | `NavigationBar/QuickInfoReader.cs` | Quick Info 에서 심볼 선언 텍스트 추출 |
+| `NavigationBar/DefinitionCommandFilter.cs` | Definition 칸에 포커스가 있을 때 `Ctrl+C` 등 편집기 명령을 텍스트 상자로 돌림 |
+| `NavigationBar/CodeSymbol.cs` | 파서 결과 (네임스페이스 / 형식 / 함수 범위) |
 | `NavigationBar/NavigationBarSettings.cs` | 막대 표시 여부 저장 |
+| `IdentifierLocator.cs` | 커서가 식별자 위인지 판단 (빈 줄 · 주석 · 문자열 제외, 경고음 방지) |
 | `QuickOpenDialog.cs` | 파일 목록 + 필터 입력 대화상자 (WPF, VS 테마 적용) |
 | `SolutionFileIndex.cs` | IVsHierarchy 순회로 솔루션 파일 수집, 캐시, 변경 이벤트 처리 |
 | `FileFilter.cs` | 필터 / 정렬 규칙 |
 | `HeaderSourceResolver.cs` | 헤더 ↔ 소스 대응 파일 탐색 |
+
+## 변경 이력
+
+| 버전 | 내용 |
+|---|---|
+| 1.1.7 | 빈 줄 ↔ 코드 줄로 커서를 옮길 때 Windows 경고음("딩")이 나던 문제 수정. Quick Info 조회와 Go / `Alt+G` 를 식별자 위에서만 실행 |
+| 1.1.6 | Definition 칸을 읽기 전용 텍스트 상자로 변경 (선택 · `Ctrl+C` 복사 · 우클릭 메뉴) |
+| 1.1.5 | VS 2026 시작 시 "8초간 응답 중지" 수정: VS 코드 모델 대신 자체 파서(백그라운드 스레드) 사용, 보이는 편집기 · 솔루션 로드 완료 후에만 갱신 |
+| 1.1.4 | Navigation Bar 를 C# 편집기에도 추가 |
+| 1.1.3 | Navigation Bar 맨 오른쪽에 Go 버튼 추가. 증분 빌드 시 VSIX 버전이 갱신되지 않던 문제 수정 (1.1.1 / 1.1.2 가 1.1.0 으로 패키징되어 설치가 갱신되지 않았음) |

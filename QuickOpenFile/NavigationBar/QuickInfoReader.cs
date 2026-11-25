@@ -27,15 +27,23 @@ namespace QuickOpenFile.NavigationBar
 
         public static async Task<string> GetDefinitionAsync(IAsyncQuickInfoBroker broker, ITextView view, SnapshotPoint point, CancellationToken cancellationToken)
         {
-            string text = await QueryAsync(broker, view, point, cancellationToken);
-
-            // 커서가 식별자 바로 뒤에 있으면 한 글자 앞에서 다시 시도한다.
-            if (text == null && point.Position > 0)
+            // 빈 줄 · 공백 · 주석 · 문자열 위에서는 조회하지 않는다.
+            // (C++ 언어 서비스는 심볼이 없는 위치의 Quick Info 요청에 경고음을 낸다.)
+            // 커서가 식별자 바로 뒤에 있으면 한 글자 앞의 식별자를 조회한다.
+            SnapshotPoint? target = FindIdentifierPoint(point);
+            if (target == null)
             {
-                text = await QueryAsync(broker, view, point - 1, cancellationToken);
+                return null;
             }
 
-            return text;
+            return await QueryAsync(broker, view, target.Value, cancellationToken);
+        }
+
+        private static SnapshotPoint? FindIdentifierPoint(SnapshotPoint point)
+        {
+            ITextSnapshotLine line = point.GetContainingLine();
+            int column = IdentifierLocator.FindIdentifierColumn(line.GetText(), point.Position - line.Start.Position);
+            return column < 0 ? (SnapshotPoint?)null : line.Start + column;
         }
 
         private static async Task<string> QueryAsync(IAsyncQuickInfoBroker broker, ITextView view, SnapshotPoint point, CancellationToken cancellationToken)

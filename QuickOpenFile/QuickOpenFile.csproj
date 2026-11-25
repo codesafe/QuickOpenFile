@@ -9,7 +9,7 @@
     <LangVersion>latest</LangVersion>
     <UseWPF>true</UseWPF>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>1.1.5</Version>
+    <Version>1.1.7</Version>
 
     <!-- VSIX 설정 -->
     <GeneratePkgDefFile>true</GeneratePkgDefFile>

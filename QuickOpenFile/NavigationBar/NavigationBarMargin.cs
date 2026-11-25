@@ -9,13 +9,16 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using EnvDTE;
+using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.Language.Intellisense;
+using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.TextManager.Interop;
 using Microsoft.VisualStudio.Utilities;
 using Task = System.Threading.Tasks.Task;
 
@@ -35,10 +38,13 @@ namespace QuickOpenFile.NavigationBar
         [Import]
         internal SVsServiceProvider ServiceProvider { get; set; }
 
+        [Import]
+        internal IVsEditorAdaptersFactoryService EditorAdapters { get; set; }
+
         public IWpfTextViewMargin CreateMargin(IWpfTextViewHost wpfTextViewHost, IWpfTextViewMargin marginContainer)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            return new NavigationBarMargin(wpfTextViewHost.TextView, QuickInfoBroker, (DTE)ServiceProvider.GetService(typeof(DTE)));
+            return new NavigationBarMargin(wpfTextViewHost.TextView, QuickInfoBroker, (DTE)ServiceProvider.GetService(typeof(DTE)), EditorAdapters);
         }
     }
 
@@ -70,7 +76,9 @@ namespace QuickOpenFile.NavigationBar
 
         private readonly Border _root;
         private readonly TextBlock _contextText;
-        private readonly TextBlock _definitionText;
+        private readonly TextBox _definitionBox;
+        private readonly IVsEditorAdaptersFactoryService _editorAdapters;
+        private DefinitionCommandFilter _commandFilter;
         private readonly Border _contextField;
 
         private readonly DispatcherTimer _caretTimer;
@@ -84,18 +92,19 @@ namespace QuickOpenFile.NavigationBar
         private bool _waitingForSolution;
         private bool _disposed;
 
-        public NavigationBarMargin(IWpfTextView view, IAsyncQuickInfoBroker quickInfoBroker, DTE dte)
+        public NavigationBarMargin(IWpfTextView view, IAsyncQuickInfoBroker quickInfoBroker, DTE dte, IVsEditorAdaptersFactoryService editorAdapters)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
 
             _view = view;
             _quickInfoBroker = quickInfoBroker;
             _dte = dte;
+            _editorAdapters = editorAdapters;
             _language = view.TextBuffer.ContentType.IsOfType("CSharp") ? SourceLanguage.CSharp : SourceLanguage.Cpp;
 
             // ---- UI ----
             _contextText = CreateFieldText();
-            _definitionText = CreateFieldText();
+            _definitionBox = CreateDefinitionBox();
 
             var dropArrow = new TextBlock { Text = "▾", Margin = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
             var contextPanel = new DockPanel();
@@ -108,7 +117,7 @@ namespace QuickOpenFile.NavigationBar
             _contextField.ToolTip = "현재 범위 — 클릭하면 파일의 함수 목록 (Alt+M)";
             _contextField.MouseLeftButtonUp += (s, e) => { ShowMethodList(); e.Handled = true; };
 
-            Border definitionField = CreateField(_definitionText);
+            Border definitionField = CreateField(_definitionBox);
 
             var splitter = new GridSplitter { Width = 4, HorizontalAlignment = HorizontalAlignment.Stretch, Background = System.Windows.Media.Brushes.Transparent };
 
@@ -190,6 +199,7 @@ namespace QuickOpenFile.NavigationBar
                 _waitingForSolution = false;
             }
 
+            RemoveCommandFilter();
             _view.Properties.RemoveProperty(typeof(NavigationBarMargin));
             _symbols = null;
         }
@@ -213,6 +223,154 @@ namespace QuickOpenFile.NavigationBar
             field.SetResourceReference(TextElement.ForegroundProperty, EnvironmentColors.ComboBoxTextBrushKey);
             return field;
         }
+
+        #endregion
+
+        #region Definition 칸 (읽기 전용 텍스트 상자: 선택 / 복사 가능)
+
+        private TextBox CreateDefinitionBox()
+        {
+            var box = new TextBox
+            {
+                IsReadOnly = true,
+                IsReadOnlyCaretVisible = false,
+                IsUndoEnabled = false,
+                TextWrapping = TextWrapping.NoWrap,
+                AcceptsReturn = false,
+                BorderThickness = new Thickness(0),
+                Background = System.Windows.Media.Brushes.Transparent,
+                Padding = new Thickness(3, 1, 3, 1),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Cursor = Cursors.IBeam,
+            };
+            box.SetResourceReference(Control.ForegroundProperty, EnvironmentColors.ComboBoxTextBrushKey);
+            box.SetResourceReference(TextBoxBase.CaretBrushProperty, EnvironmentColors.ComboBoxTextBrushKey);
+
+            // 우클릭 메뉴: 복사 / 모두 선택 (VS 명령 라우팅과 무관하게 항상 동작)
+            var copyItem = new MenuItem { Header = "복사", InputGestureText = "Ctrl+C" };
+            copyItem.Click += (s, e) => CopyDefinition();
+            var selectAllItem = new MenuItem { Header = "모두 선택", InputGestureText = "Ctrl+A" };
+            selectAllItem.Click += (s, e) => SelectAllDefinition();
+            box.ContextMenu = new ContextMenu { Items = { copyItem, selectAllItem } };
+            box.ContextMenuOpening += (s, e) => copyItem.IsEnabled = box.Text.Length > 0;
+
+            box.PreviewKeyDown += OnDefinitionPreviewKeyDown;
+            box.GotKeyboardFocus += (s, e) =>
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                EnsureCommandFilter();
+            };
+            return box;
+        }
+
+        private void SetDefinitionText(string text, bool dimmed)
+        {
+            // 사용자가 텍스트를 선택 중이면 내용을 바꾸지 않는다 (선택이 풀리지 않도록).
+            if (_definitionBox.IsKeyboardFocusWithin)
+            {
+                return;
+            }
+
+            if (!string.Equals(_definitionBox.Text, text, StringComparison.Ordinal))
+            {
+                _definitionBox.Text = text ?? string.Empty;
+                _definitionBox.ScrollToHome();
+            }
+
+            _definitionBox.Opacity = dimmed ? 0.5 : 1.0;
+            _definitionBox.ToolTip = string.IsNullOrEmpty(text) ? null : text + "\n(선택해서 Ctrl+C 로 복사, 우클릭 메뉴)";
+        }
+
+        private void OnDefinitionPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            ModifierKeys modifiers = Keyboard.Modifiers;
+            if ((e.Key == Key.C || e.Key == Key.Insert) && modifiers == ModifierKeys.Control)
+            {
+                CopyDefinition();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.A && modifiers == ModifierKeys.Control)
+            {
+                SelectAllDefinition();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                // 편집기로 돌아간다.
+                _definitionBox.Select(0, 0);
+                _view.VisualElement.Focus();
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>선택한 부분, 선택이 없으면 전체를 복사한다.</summary>
+        private void CopyDefinition()
+        {
+            string text = _definitionBox.SelectionLength > 0 ? _definitionBox.SelectedText : _definitionBox.Text;
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            try
+            {
+                Clipboard.SetText(text);
+            }
+            catch (System.Runtime.InteropServices.COMException)
+            {
+                // 다른 프로그램이 클립보드를 잡고 있는 경우
+            }
+        }
+
+        private void SelectAllDefinition()
+        {
+            _definitionBox.Focus();
+            _definitionBox.SelectAll();
+        }
+
+        /// <summary>
+        /// 편집기 명령 필터를 연결한다. 편집기 어댑터가 완전히 준비된 뒤에 연결해야 하므로
+        /// Definition 칸이 처음 포커스를 받을 때 연결한다.
+        /// </summary>
+        private void EnsureCommandFilter()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            if (_commandFilter != null || _editorAdapters == null || _disposed)
+            {
+                return;
+            }
+
+            IVsTextView textView = _editorAdapters.GetViewAdapter(_view);
+            if (textView == null)
+            {
+                return;
+            }
+
+            var filter = new DefinitionCommandFilter(() => !_disposed && _definitionBox.IsKeyboardFocusWithin, CopyDefinition, SelectAllDefinition);
+            if (textView.AddCommandFilter(filter, out IOleCommandTarget next) == Microsoft.VisualStudio.VSConstants.S_OK)
+            {
+                filter.Next = next;
+                _commandFilter = filter;
+            }
+        }
+
+        private void RemoveCommandFilter()
+        {
+            if (_commandFilter == null || !ThreadHelper.CheckAccess())
+            {
+                return;
+            }
+
+#pragma warning disable VSTHRD010 // 바로 위에서 UI 스레드인지 확인했다.
+            _editorAdapters?.GetViewAdapter(_view)?.RemoveCommandFilter(_commandFilter);
+#pragma warning restore VSTHRD010
+            _commandFilter = null;
+        }
+
+        #endregion
+
+        #region Go 버튼
 
         /// <summary>
         /// Visual Assist 의 Go 버튼: Alt+G (Goto Implementation/Declaration) 와 같은 동작.
@@ -566,13 +724,11 @@ namespace QuickOpenFile.NavigationBar
                 // 심볼이 없는 위치(공백 등)에서는 마지막 선언을 흐리게 유지한다 (깜빡임 방지).
                 if (definition != null)
                 {
-                    _definitionText.Text = definition;
-                    _definitionText.Opacity = 1.0;
-                    _definitionText.ToolTip = definition;
+                    SetDefinitionText(definition, dimmed: false);
                 }
                 else
                 {
-                    _definitionText.Opacity = 0.5;
+                    SetDefinitionText(_definitionBox.Text, dimmed: true);
                 }
             }
             catch (OperationCanceledException)

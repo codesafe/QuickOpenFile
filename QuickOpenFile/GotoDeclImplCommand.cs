@@ -91,6 +91,13 @@ namespace QuickOpenFile
                 return;
             }
 
+            // 빈 줄 · 공백 · 주석 위에서 탐색 명령을 실행하면 언어 서비스가 경고음이나 메시지 상자를 띄우므로 미리 막는다.
+            if (!IsOnIdentifier(dte))
+            {
+                setStatus("Goto Implementation/Declaration: 커서를 심볼(변수, 함수, 형식 이름) 위에 두고 실행하세요.");
+                return;
+            }
+
             s_running = true;
             try
             {
@@ -168,6 +175,34 @@ namespace QuickOpenFile
                 // 명령이 없거나 현재 위치에서 실행할 수 없는 경우
                 return false;
             }
+        }
+
+        private static bool IsOnIdentifier(DTE dte)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            try
+            {
+                if (dte.ActiveDocument?.Selection is TextSelection selection)
+                {
+                    VirtualPoint point = selection.ActivePoint;
+                    string lineText = point.CreateEditPoint().GetLines(point.Line, point.Line + 1);
+
+                    // #include "foo.h" 는 문자열 안이지만 파일 열기가 가능하므로 그대로 실행한다.
+                    string trimmed = lineText.TrimStart();
+                    if (trimmed.StartsWith("#include", StringComparison.Ordinal) || trimmed.StartsWith("#import", StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+
+                    return IdentifierLocator.FindIdentifierColumn(lineText, point.LineCharOffset - 1) >= 0;
+                }
+            }
+            catch (Exception ex) when (ex is COMException || ex is ArgumentException || ex is InvalidOperationException)
+            {
+            }
+
+            return true; // 판단할 수 없으면 기존처럼 명령을 실행한다.
         }
 
         private static CaretLocation? GetCaret(DTE dte)
